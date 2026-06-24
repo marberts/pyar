@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 class AggregationStructure:
@@ -12,6 +13,9 @@ class AggregationStructure:
     @staticmethod
     def from_list(list: list) -> None:
         return None
+
+    @property
+    def weights(self,)
     
 class PriceIndex:
     def __init__(self) -> None:
