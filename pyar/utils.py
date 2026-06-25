@@ -5,8 +5,5 @@ import means
 from means import Vector
 
 
-def back_period(
-    time: pd.Categorical,
-    product: pd.Categorical
-) -> npt.NDArray[np.int64]:
+def back_period(time: pd.Categorical, product: pd.Categorical) -> npt.NDArray[np.int64]:
     return np.array(1)
