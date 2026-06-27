@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import numpy.typing as npt
 
@@ -11,27 +12,26 @@ def _complete_cases(*args):
 
 
 def _rdiff(a: np.ndarray, b: float, r: float) -> np.ndarray:
-    if r == 0.0:
-        with np.errstate(divide="ignore"):
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if r == 0.0:
             return np.log(a / b)
-    elif r == 1.0:
-        return a - b
-    else:
-        with np.errstate(divide="ignore"):
+        elif r == 1.0:
+            return a - b
+        else:
             return (a**r - b**r) / r
 
 
 def _extended_mean_pow(x: np.ndarray, m: float, r: float, s: float):
-    with np.errstate(divide="ignore"):
+    with np.errstate(divide="ignore", invalid="ignore"):
         res = _rdiff(x, m, r) / _rdiff(x, m, s)
-    return np.where(np.isclose(x, m), m ** (r - s), res)
+        return np.where(np.isclose(x, m), m ** (r - s), res)
 
 
 def _pair_means(
     x: npt.ArrayLike,
     weights: tuple[npt.ArrayLike | None, npt.ArrayLike | None],
     order: tuple[float, float],
-    drop_na: bool,
+    skipnan: bool,
 ) -> tuple[float, float]:
     x = np.asarray(x).ravel()
     w1 = np.asarray(weights[0]).ravel() if weights[0] is not None else None
@@ -42,14 +42,14 @@ def _pair_means(
     if w2 is not None:
         if len(x) != len(w2):
             raise ValueError("`x` and `weights[1]` must be the same length")
-    if drop_na:
+    if skipnan:
         keep = _complete_cases(x, w1, w2)
         x = x[keep]
         if w1 is not None:
             w1 = w1[keep]
         if w2 is not None:
             w2 = w2[keep]
-    return (mean(x, w1, order=order[0]), mean(x, w2, order=order[1]))
+    return mean(x, w1, order=order[0]), mean(x, w2, order=order[1])
 
 
 def mean(
@@ -57,7 +57,7 @@ def mean(
     weights: npt.ArrayLike | None = None,
     *,
     order: float = 1.0,
-    drop_na: bool = False,
+    skipnan: bool = False,
 ) -> float:
     """Generalized mean
 
@@ -66,13 +66,13 @@ def mean(
     Parameters
     ----------
     x : ArrayLike
-        A flat array of values.
+        A flat array of positive values.
     weights : ArrayLike | None, optional
               A flat array of weights for the values in `x`. If None
               (the default) then each element of `x` gets equal weight.
     order : float, optional
             The order the generalized mean, defaulting to an arithmetic mean.
-    drop_na : bool, optional
+    skipnan : bool, optional
               Drop NaNs in `x` and `weights`. By default these values are not
               dropped.
 
@@ -108,21 +108,22 @@ def mean(
     if weights is not None:
         weights = np.asarray(weights).ravel()
         if len(x) != len(weights):
-            raise ValueError("'x' and 'weights' must be the same length")
+            raise ValueError("`x` and `weights` must be the same length")
     order = float(order)
-    if drop_na:
+    if not math.isfinite(order):
+        raise ValueError("`order` must be finite")
+    if skipnan:
         keep = _complete_cases(x, weights)
         x = x[keep]
         if weights is not None:
             weights = weights[keep]
-    if weights is None:
-        with np.errstate(divide="ignore"):
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if weights is None:
             if order == 0.0:
                 return np.exp(np.average(np.log(x)))
             else:
                 return np.average(x**order) ** (1 / order)
-    else:
-        with np.errstate(divide="ignore"):
+        else:
             if order == 0.0:
                 return np.exp(np.average(np.log(x), weights=weights))
             else:
@@ -135,7 +136,7 @@ def nested_mean(
     *,
     order: tuple[float, tuple[float, float]] = (0.0, (1.0, -1.0)),
     outer_weights: npt.ArrayLike = np.array([1, 1]),
-    drop_na: bool = False,
+    skipnan: bool = False,
 ) -> float:
     """Nested generalized means
 
@@ -145,14 +146,18 @@ def nested_mean(
     Parameters
     ----------
     x : ArrayLike
-        A flat array of values.
+        A flat array of positive values.
     weights : tuple[ArrayLike | None, ArrayLike | None], optional
               A pair of flat arrays of weights for the values in `x`. If None
               (the default) then each element of `x` gets equal weight.
     order : tuple[float, tuple[float, float]], optional
             The order the outer and inner generalized means. The default
             computes the geometric mean of the arithmetic and harmonic means.
-    drop_na : bool, optional
+    outer_weights: ArrayLike, optional
+                   A pair of weights for the outer generalized mean. The
+                   defaults weights each of the inner generalized means
+                   equally.
+    skipnan : bool, optional
               Drop NaNs in `x` and `weights`. By default these values are not
               dropped.
 
@@ -160,9 +165,12 @@ def nested_mean(
     -------
     float
         The nested generalized mean, calculated as
-        mean(
-            [mean(x, weights[0], order[1][0]), mean(x, weights[1], order[1][1])],
-            order[0]
+        mean([
+              mean(x, weights[0], order=order[1][0]),
+              mean(x, weights[1], order=order[1][1])
+             ],
+            outer_weights,
+            order=order[0]
         ).
 
     Notes
@@ -172,13 +180,33 @@ def nested_mean(
     Examples
     --------
     """
-    m = _pair_means(x, weights, order[1], drop_na)
+    m = _pair_means(x, weights, order[1], skipnan)
     outer_weights = np.asarray(outer_weights).ravel()
-    return mean(m, outer_weights, order=order[0], drop_na=drop_na)
+    return mean(m, outer_weights, order=order[0], skipnan=skipnan)
 
 
 def scale_weights(x: npt.ArrayLike) -> np.ndarray:
-    return x / np.sum(x[~np.isnan(x)])
+    """Scale weights
+
+    Scale a flat array of weights so that it sums to one, ignoring NaNs.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        A flat array of weights.
+
+    Returns
+    -------
+    ndarray
+        A copy of `x`, normalized to sum to one.
+
+    Examples
+    --------
+    """
+    total = np.sum(x[~np.isnan(x)])
+    if total <= 0.0:
+        raise ValueError("cannot scale weights to sum to one")
+    return x / total
 
 
 def transmute_weights(
@@ -189,27 +217,69 @@ def transmute_weights(
     to: float = 1.0,
     mean_value: float | None = None,
 ) -> npt.ArrayLike:
+    """Transmute weights in a generalized mean
+
+    Transmute the weights to turn a generalized mean of a given order into a
+    generalized mean of any other order. That is, derive weights `v` such that
+    `mean(x, wights, order=order) == mean(x, v, order=to)`.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        A flat array of positive values.
+    weights : ArrayLike | None, optional
+              A flat array of weights for the values in `x`. If None
+              (the default) then each element of `x` gets equal weight.
+    order : float, optional
+            The order the generalized mean, defaulting to a geometric mean.
+    to : float, optional
+         The target order of the generalized mean for the transmuted weights.
+         The default is an arithmetic mean.
+    mean_value : float, optional.
+         The value of the generalized mean of `x`. Can be provided if known to
+         save recomputing it.
+
+    Returns
+    -------
+    ndarray
+        An array of weights, the same length as `x`.
+
+    References
+    ----------
+    Balk, B. M. 2008. Price and Quantity Index Numbers. Cambridge University
+    Press.
+
+    Martin, S. 2021. A Note on Generalized Decompositions for Price Indexes.
+    Prices Analytical Series. Statistics Canada Catalogue 62F0014M.
+
+    Examples
+    --------
+    """
     x = np.asarray(x).ravel()
     if weights is not None:
         weights = np.asarray(weights).ravel()
         if len(x) != len(weights):
-            raise ValueError("'x' and 'weights' must be the same length")
+            raise ValueError("`x` and `weights` must be the same length")
     order = float(order)
+    if not math.isfinite(order):
+        raise ValueError("`order` must be finite")
     to = float(to)
+    if not math.isfinite(to):
+        raise ValueError("`to` must be finite")
     if order == to:
         if weights is None:
-            weights = np.repeat(1, len(x))
+            weights = np.repeat(1.0, len(x))
         res = np.where(np.isnan(x), np.nan, weights)
     else:
         if mean_value is None:
-            mean_value = mean(x, weights, order=order, drop_na=True)
+            mean_value = mean(x, weights, order=order, skipnan=True)
         else:
             mean_value = float(mean_value)
         if weights is None:
             res = _extended_mean_pow(x, mean_value, order, to)
         else:
             res = weights * _extended_mean_pow(x, mean_value, order, to)
-    return scale_weights(res)
+    return res
 
 
 def nested_transmute(
@@ -219,20 +289,65 @@ def nested_transmute(
     order: tuple[float, tuple[float, float]] = (0.0, (1.0, -1.0)),
     outer_weights: npt.ArrayLike = np.array([1, 1]),
     to: float = 1.0,
-    pivot: float = 0.0,
+    pivot: float = None,
 ) -> npt.ArrayLike:
+    """Transmute weights in a nested generalized mean
+
+    Transmute the weights to turn a nested generalized mean of a given order
+    into a generalized mean of any other order. That is, derive weights `v` such
+    that `nested_mean(x, weights, order=order) == mean(x, v, order=to)`.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        A flat array of positive values.
+    weights : tuple[ArrayLike | None, ArrayLike | None], optional
+              A pair of flat arrays of weights for the values in `x`. If None
+              (the default) then each element of `x` gets equal weight.
+    order : tuple[float, tuple[float, float]], optional
+            The order the outer and inner generalized means. The default
+            computes the geometric mean of the arithmetic and harmonic means.
+    outer_weights: ArrayLike, optional
+                   A pair of weights for the outer generalized mean. The
+                   default weights each of the inner generalized means
+                   equally.
+    to : float, optional
+         The target order of the generalized mean for the transmuted weights.
+         The default is an arithmetic mean.
+    pivot : float, optional
+         The pivot value used to transmute the weights. The default uses
+         `order[0]`.
+
+    Returns
+    -------
+    ndarray
+        An array of weights, the same length as `x`.
+
+    References
+    ----------
+    Balk, B. M. 2008. Price and Quantity Index Numbers. Cambridge University
+    Press.
+
+    Martin, S. 2021. A Note on Generalized Decompositions for Price Indexes.
+    Prices Analytical Series. Statistics Canada Catalogue 62F0014M.
+
+    Examples
+    --------
+    """
     x = np.asarray(x).ravel()
     w1 = np.asarray(weights[0]).ravel() if weights[0] is not None else None
     w2 = np.asarray(weights[1]).ravel() if weights[1] is not None else None
     if w1 is not None:
         if len(x) != len(w1):
-            raise ValueError("'x' and 'weights[0]' must be the same length")
+            raise ValueError("`x` and `weights[0]` must be the same length")
     if w2 is not None:
         if len(x) != len(w2):
-            raise ValueError("'x' and 'weights[1]' must be the same length")
+            raise ValueError("`x` and `weights[1]` must be the same length")
+    if pivot is None:
+        pivot = order[0]
     to_na = _complete_cases(x, w1, w2)
     x = np.where(to_na, x, np.nan)
-    m = _pair_means(x, (w1, w2), order[1], drop_na=True)
+    m = _pair_means(x, (w1, w2), order[1], skipnan=True)
     v1 = transmute_weights(x, w1, order=order[1][0], to=pivot, mean_value=m[0])
     v2 = transmute_weights(x, w2, order=order[1][1], to=pivot, mean_value=m[1])
     t = transmute_weights(m, outer_weights, order=order[0], to=pivot)
@@ -247,11 +362,34 @@ def nested_transmute(
 def factor_weights(
     x: npt.ArrayLike, weights: npt.ArrayLike | None = None, *, order: float = 1.0
 ) -> np.ndarray:
+    """Factor weights
+
+    Factor the weights to turn generalized mean of products into the product
+    of generalized means.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        A flat array of positive values.
+    weights : ArrayLike | None, optional
+              A flat array of weights for the values in `x`. If None
+              (the default) then each element of `x` gets equal weight.
+    order : float, optional
+            The order the generalized mean, defaulting to an arithmetic mean.
+
+    Returns
+    -------
+    ndarray
+        An array of weights, the same length as `x`.
+
+    Examples
+    --------
+    """
     x = np.asarray(x).ravel()
     if weights is not None:
         weights = np.asarray(weights).ravel()
         if len(x) != len(weights):
-            raise ValueError("'x' and 'weights' must be the same length")
+            raise ValueError("`x` and `weights` must be the same length")
     order = float(order)
     if order == 0.0:
         if weights is None:
