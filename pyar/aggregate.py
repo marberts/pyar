@@ -15,8 +15,10 @@ class AggregationStructure:
         return None
 
     @property
-    def weights(self,)
-    
+    def weights(self):
+        return None
+
+
 class PriceIndex:
     def __init__(self) -> None:
         return None
@@ -29,6 +31,7 @@ class PriceIndex:
     def from_numpy(array: np.ndarray) -> None:
         return None
 
-class ChainablePriceIndex(Index):
+
+class ChainablePriceIndex(PriceIndex):
     def __init__(self) -> None:
         return None

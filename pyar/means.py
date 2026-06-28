@@ -1,24 +1,41 @@
 import math
+import functools
 import numpy as np
 import numpy.typing as npt
 
 
-def _complete_cases(*args):
+def flatten_inputs(func):
+    @functools.wraps(func)
+    def flatten(*args, **kwargs):
+        return func(*(np.asarray(x).ravel() for x in args), **kwargs)
+
+    return flatten
+
+
+def _complete_cases(*args: np.ndarray, invert: bool = False) -> np.ndarray:
     mask = np.zeros(args[0].size, dtype=np.bool)
     for i in args:
         if i is not None:
             mask |= np.isnan(i)
-    return ~mask
+    return mask if invert else ~mask
 
 
-def _rdiff(a: np.ndarray, b: float, r: float) -> np.ndarray:
+def _balance_nans(*args: np.ndarray) -> list[np.ndarray]:
+    to_nan = _complete_cases(*args, invert=True)
+    if np.any(to_nan):
+        return [np.where(to_nan, np.nan, x) for x in args]
+    else:
+        return args
+
+
+def _rdiff(x: np.ndarray, y: float, r: float) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         if r == 0.0:
-            return np.log(a / b)
+            return np.log(x / y)
         elif r == 1.0:
-            return a - b
+            return x - y
         else:
-            return (a**r - b**r) / r
+            return (x**r - y**r) / r
 
 
 def _extended_mean_pow(x: np.ndarray, m: float, r: float, s: float):
@@ -34,8 +51,7 @@ def _pair_means(
     skipnan: bool,
 ) -> tuple[float, float]:
     x = np.asarray(x).ravel()
-    w1 = np.asarray(weights[0]).ravel() if weights[0] is not None else None
-    w2 = np.asarray(weights[1]).ravel() if weights[1] is not None else None
+    w1, w2 = (np.asarray(w).ravel() if w is not None else None for w in weights)
     if w1 is not None:
         if len(x) != len(w1):
             raise ValueError("`x` and `weights[0]` must be the same length")
@@ -185,6 +201,54 @@ def nested_mean(
     return mean(m, outer_weights, order=order[0], skipnan=skipnan)
 
 
+def extended_mean(
+    x: npt.ArrayLike, y: npt.ArrayLike, order: tuple[float, float] = (0.0, 1.0)
+) -> np.ndarray:
+    """Extended mean
+
+    Calculated the pairwise extended mean to two arrays.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        A flat array of positive values.
+    y : ArrayLike
+        A flat array of positive values.
+    order : tuple[float, float], optional
+            A pair of numbers giving the order of the extended mean. Defaults to
+            computing a logarithmic mean.
+
+    Returns
+    -------
+    ndarray
+        The pairwise extended mean.
+
+    References
+    ----------
+    Bullen, P. S. (2003). Handbook of Means and Their Inequalities.
+    Springer Science+Business Media.
+
+    Examples
+    --------
+
+    """
+    if not all(math.isfinite(x) for x in order):
+        raise ValueError("`order` must be a pair of finite numbers")
+    r, s = order
+    if r == 0.0 and s == 0.0:
+        res = np.sqrt(x * y)
+    elif r == 0.0:
+        res = ((x**s - y**s) / np.log(x / y) / s) ** (1 / s)
+    elif s == 0.0:
+        res = ((x**r - y**r) / np.log(x / y) / r) ** (1 / r)
+    elif r == s:
+        res = np.exp((x**r * np.log(x) - y**r * np.log(y)) / (x**r - y**r) - 1 / r)
+    else:
+        res = ((x**s - y**s) / (x**r - y**r) * (r / s)) ^ (1 / (s - r))
+    # Set output to x when x == y.
+    return np.where(np.isclose(x, y), x, res)
+
+
 def scale_weights(x: npt.ArrayLike) -> np.ndarray:
     """Scale weights
 
@@ -216,7 +280,7 @@ def transmute_weights(
     order: float = 0.0,
     to: float = 1.0,
     mean_value: float | None = None,
-) -> npt.ArrayLike:
+) -> np.ndarray:
     """Transmute weights in a generalized mean
 
     Transmute the weights to turn a generalized mean of a given order into a
@@ -290,7 +354,7 @@ def nested_transmute(
     outer_weights: npt.ArrayLike = np.array([1, 1]),
     to: float = 1.0,
     pivot: float = None,
-) -> npt.ArrayLike:
+) -> np.ndarray:
     """Transmute weights in a nested generalized mean
 
     Transmute the weights to turn a nested generalized mean of a given order
@@ -335,8 +399,7 @@ def nested_transmute(
     --------
     """
     x = np.asarray(x).ravel()
-    w1 = np.asarray(weights[0]).ravel() if weights[0] is not None else None
-    w2 = np.asarray(weights[1]).ravel() if weights[1] is not None else None
+    w1, w2 = (np.asarray(w).ravel() if w is not None else None for w in weights)
     if w1 is not None:
         if len(x) != len(w1):
             raise ValueError("`x` and `weights[0]` must be the same length")
@@ -345,8 +408,8 @@ def nested_transmute(
             raise ValueError("`x` and `weights[1]` must be the same length")
     if pivot is None:
         pivot = order[0]
-    to_na = _complete_cases(x, w1, w2)
-    x = np.where(to_na, x, np.nan)
+    to_nan = _complete_cases(x, w1, w2, invert=True)
+    x = np.where(to_nan, np.nan, x)
     m = _pair_means(x, (w1, w2), order[1], skipnan=True)
     v1 = transmute_weights(x, w1, order=order[1][0], to=pivot, mean_value=m[0])
     v2 = transmute_weights(x, w2, order=order[1][1], to=pivot, mean_value=m[1])
