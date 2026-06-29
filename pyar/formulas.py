@@ -1,234 +1,232 @@
 import numpy as np
-import numpy.typing as npt
+import pandas as pd
 from .means import (
     mean,
     nested_mean,
-    _balance_nans,
+    _balance_nas,
     scale_weights,
-    flatten_inputs,
     extended_mean,
 )
 
 
-@flatten_inputs
-def carli(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return mean(p1 / p0, order=1.0, skipnan=skipnan)
+def carli(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return mean(p1 / p0, order=1.0, skipna=skipna)
 
 
-@flatten_inputs
-def dutot(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return mean(p1 / p0, p0, order=1.0, skipnan=skipnan)
+
+def dutot(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return mean(p1 / p0, p0, order=1.0, skipna=skipna)
 
 
-@flatten_inputs
-def jevons(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return mean(p1 / p0, order=0.0, skipnan=skipnan)
+
+def jevons(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return mean(p1 / p0, order=0.0, skipna=skipna)
 
 
-@flatten_inputs
-def cswd(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return nested_mean(p1 / p0, order=(0.0, (1.0, -1.0)), skipnan=skipnan)
+
+def cswd(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return nested_mean(p1 / p0, order=(0.0, (1.0, -1.0)), skipna=skipna)
 
 
-@flatten_inputs
-def balk_walsh(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return nested_mean(p1 / p0, order=(0.0, (0.5, 0.5)), skipnan=skipnan)
+
+def balk_walsh(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return nested_mean(p1 / p0, order=(0.0, (0.5, 0.5)), skipna=skipna)
 
 
-@flatten_inputs
-def hybrid_cswd(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return mean(p1 / p0, np.sqrt(p0 / p1), order=1.0, skipnan=skipnan)
+
+def hybrid_cswd(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return mean(p1 / p0, np.sqrt(p0 / p1), order=1.0, skipna=skipna)
 
 
-@flatten_inputs
-def coggshall(p1: npt.ArrayLike, p0: npt.ArrayLike, skipnan=False) -> np.ndarray:
-    return mean(p1 / p0, order=-1.0, skipnan=skipnan)
+
+def coggshall(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
+    return mean(p1 / p0, order=-1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def laspeyres(
-    p1: npt.ArrayLike, p0: npt.ArrayLike, q0: npt.ArrayLike, skipnan=False
-) -> np.ndarray:
-    return mean(p1 / p0, p0 * q0, order=1.0, skipnan=skipnan)
+    p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False
+) -> float:
+    return mean(p1 / p0, p0 * q0, order=1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def palgrave(
-    p1: npt.ArrayLike, p0: npt.ArrayLike, q1: npt.ArrayLike, skipnan=False
-) -> np.ndarray:
-    return mean(p1 / p0, p1 * q1, order=1.0, skipnan=skipnan)
+    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
+) -> float:
+    return mean(p1 / p0, p1 * q1, order=1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def paasche(
-    p1: npt.ArrayLike, p0: npt.ArrayLike, q1: npt.ArrayLike, skipnan=False
-) -> np.ndarray:
-    return mean(p1 / p0, p1 * q1, order=-1.0, skipnan=skipnan)
+    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
+) -> float:
+    return mean(p1 / p0, p1 * q1, order=-1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def geo_laspeyres(
-    p1: npt.ArrayLike, p0: npt.ArrayLike, q0: npt.ArrayLike, skipnan=False
-) -> np.ndarray:
-    return mean(p1 / p0, p0 * q0, order=0.0, skipnan=skipnan)
+    p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False
+) -> float:
+    return mean(p1 / p0, p0 * q0, order=0.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def geo_paasche(
-    p1: npt.ArrayLike, p0: npt.ArrayLike, q1: npt.ArrayLike, skipnan=False
-) -> np.ndarray:
-    return mean(p1 / p0, p1 * q1, order=0.0, skipnan=skipnan)
+    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
+) -> float:
+    return mean(p1 / p0, p1 * q1, order=0.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def fisher(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
     return nested_mean(
-        p1 / p0, (p0 * q0, p1 * q1), order=(0.0, (1.0, -1.0)), skipnan=skipnan
+        p1 / p0, (p0 * q0, p1 * q1), order=(0.0, (1.0, -1.0)), skipna=skipna
     )
 
 
-@flatten_inputs
+
 def tornqvist(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
     return nested_mean(
-        p1 / p0, (p0 * q0, p1 * q1), order=(0.0, (0.0, 0.0)), skipnan=skipnan
+        p1 / p0, (p0 * q0, p1 * q1), order=(0.0, (0.0, 0.0)), skipna=skipna
     )
 
 
-@flatten_inputs
+
 def drobisch(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
     return nested_mean(
-        p1 / p0, (p0 * q0, p1 * q1), order=(1.0, (1.0, -1.0)), skipnan=skipnan
+        p1 / p0, (p0 * q0, p1 * q1), order=(1.0, (1.0, -1.0)), skipna=skipna
     )
 
 
-@flatten_inputs
+
 def walsh1(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    return mean(p1 / p0, p0 * np.sqrt(q0 * q1), order=1.0, skipnan=skipnan)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    return mean(p1 / p0, p0 * np.sqrt(q0 * q1), order=1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def marshall_edgeworth(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    return mean(p1 / p0, p0 * (q0 + q1), order=1.0, skipnan=skipnan)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    return mean(p1 / p0, p0 * (q0 + q1), order=1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def geary_khamis(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    return mean(p1 / p0, p0 * (1 / q0 + 1 / q1), order=1.0, skipnan=skipnan)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    return mean(p1 / p0, p0 * (1 / q0 + 1 / q1), order=1.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def walsh2(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    return mean(p1 / p0, np.sqrt(p1 * q1 * p0 * q0), order=0.0, skipnan=skipnan)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    return mean(p1 / p0, np.sqrt(p1 * q1 * p0 * q0), order=0.0, skipna=skipna)
 
 
-@flatten_inputs
+
 def theil(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    if skipnan:
-        p1, p0, q1, q0 = _balance_nans(p1, p0, q1, q0)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    if skipna:
+        p1, p0, q1, q0 = _balance_nas(p1, p0, q1, q0)
     w1 = scale_weights(p1 * q1)
     w0 = scale_weights(p0 * q0)
     return mean(p1 / p0, (w1 * w0 * (w1 + w0) / 2) ** (1 / 3), order=0.0)
 
 
-@flatten_inputs
+
 def rao(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan=False,
-) -> np.float64:
-    if skipnan:
-        p1, p0, q1, q0 = _balance_nans(p1, p0, q1, q0)
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna=False,
+) -> float:
+    if skipna:
+        p1, p0, q1, q0 = _balance_nas(p1, p0, q1, q0)
     w1 = scale_weights(p1 * q1)
     w0 = scale_weights(p0 * q0)
     return mean(p1 / p0, w1 * w0 / (w1 + w0) / 2, order=0.0)
 
 
-@flatten_inputs
+
 def sato_vartia(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan: bool = False,
-) -> np.float64:
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna: bool = False,
+) -> float:
     return mean(
         p1 / p0,
         extended_mean(p0 * q0 / np.sum(p0 * q0), p1 * q1 / np.sum(p1 * q1)),
         order=0.0,
-        skipnan=skipnan,
+        skipna=skipna,
     )
 
 
-@flatten_inputs
+
 def lloyd_moulton(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q0: npt.ArrayLike,
+    p1: pd.Series,
+    p0: pd.Series,
+    q0: pd.Series,
     elasticity: float,
-    skipnan: bool = False,
-) -> np.float64:
-    return mean(p1 / p0, p0 * q0, order=elasticity, skipnan=skipnan)
+    skipna: bool = False,
+) -> float:
+    return mean(p1 / p0, p0 * q0, order=elasticity, skipna=skipna)
 
 
-@flatten_inputs
+
 def lehr(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q1: npt.ArrayLike,
-    q0: npt.ArrayLike,
-    skipnan: bool = False,
-) -> np.float64:
-    if skipnan:
+    p1: pd.Series,
+    p0: pd.Series,
+    q1: pd.Series,
+    q0: pd.Series,
+    skipna: bool = False,
+) -> float:
+    if skipna:
         p1, p0, q1, q0 = _balance_nans(p1, p0, q1, q0)
     v1 = p1 * q1
     v0 = p0 * q0
@@ -236,15 +234,15 @@ def lehr(
     return np.sum(v1) / np.sum(v0) * np.sum(v * q0) / np.sum(v * q1)
 
 
-@flatten_inputs
+
 def agmean(
-    p1: npt.ArrayLike,
-    p0: npt.ArrayLike,
-    q0: npt.ArrayLike,
+    p1: pd.Series,
+    p0: pd.Series,
+    q0: pd.Series,
     elasticity: float,
     type: str = "arithmetic",
-    skipnan: bool = False,
-) -> np.float64:
+    skipna: bool = False,
+) -> float:
     elasticity = float(elasticity)
     if not 0 <= elasticity <= 1:
         raise ValueError("`elasticity` must be between 0 and 1")
