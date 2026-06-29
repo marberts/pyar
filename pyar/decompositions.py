@@ -5,7 +5,8 @@ from .means import (
     scale_weights,
     _balance_nas,
     transmute_weights,
-    nested_transmute)
+    nested_transmute,
+)
 
 
 def hallerbach(p1, p0, v1, v0):

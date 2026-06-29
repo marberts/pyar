@@ -30,7 +30,7 @@ def _rdiff(x: pd.Series, y: float, r: float) -> pd.Series:
 
 def _extended_mean_pow(x: pd.Series, m: float, r: float, s: float) -> pd.Series:
     res = _rdiff(x, m, r) / _rdiff(x, m, s)
-    return res(~np.isclose(x, m), m ** (r - s))
+    return res.where(~np.isclose(x, m), m ** (r - s))
 
 
 def _pair_means(
@@ -182,8 +182,7 @@ def nested_mean(
     --------
     """
     m = _pair_means(x, weights, order[1], skipna)
-    outer_weights = np.asarray(outer_weights)
-    return mean(m, outer_weights, order=order[0], skipna=skipna)
+    return mean(m, pd.Series(outer_weights), order=order[0], skipna=skipna)
 
 
 def extended_mean(
@@ -325,7 +324,7 @@ def transmute_weights(
             res = _extended_mean_pow(x, mean_value, order, to)
         else:
             res = weights * _extended_mean_pow(x, mean_value, order, to)
-    return res
+    return scale_weights(res)
 
 
 def nested_transmute(
@@ -390,11 +389,13 @@ def nested_transmute(
     if pivot is None:
         pivot = order[0]
     to_na = _complete_cases(x, w1, w2)
-    x = x.where(to_na, np.nan)
+    x = x.where(to_na)
     m = _pair_means(x, (w1, w2), order[1], skipna=True)
     v1 = transmute_weights(x, w1, order=order[1][0], to=pivot, mean_value=m[0])
     v2 = transmute_weights(x, w2, order=order[1][1], to=pivot, mean_value=m[1])
-    t = transmute_weights(m, outer_weights, order=order[0], to=pivot)
+    t = transmute_weights(
+        pd.Series(m), pd.Series(outer_weights), order=order[0], to=pivot
+    )
     if math.isnan(t[0]):
         return transmute_weights(x, v2 * t[1], order=pivot, to=to)
     elif math.isnan(t[1]):

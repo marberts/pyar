@@ -13,70 +13,48 @@ def carli(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, order=1.0, skipna=skipna)
 
 
-
 def dutot(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p0, order=1.0, skipna=skipna)
-
 
 
 def jevons(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, order=0.0, skipna=skipna)
 
 
-
 def cswd(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return nested_mean(p1 / p0, order=(0.0, (1.0, -1.0)), skipna=skipna)
-
 
 
 def balk_walsh(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return nested_mean(p1 / p0, order=(0.0, (0.5, 0.5)), skipna=skipna)
 
 
-
 def hybrid_cswd(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, np.sqrt(p0 / p1), order=1.0, skipna=skipna)
-
 
 
 def coggshall(p1: pd.Series, p0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, order=-1.0, skipna=skipna)
 
 
-
-def laspeyres(
-    p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False
-) -> float:
+def laspeyres(p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p0 * q0, order=1.0, skipna=skipna)
 
 
-
-def palgrave(
-    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
-) -> float:
+def palgrave(p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p1 * q1, order=1.0, skipna=skipna)
 
 
-
-def paasche(
-    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
-) -> float:
+def paasche(p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p1 * q1, order=-1.0, skipna=skipna)
 
 
-
-def geo_laspeyres(
-    p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False
-) -> float:
+def geo_laspeyres(p1: pd.Series, p0: pd.Series, q0: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p0 * q0, order=0.0, skipna=skipna)
 
 
-
-def geo_paasche(
-    p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False
-) -> float:
+def geo_paasche(p1: pd.Series, p0: pd.Series, q1: pd.Series, skipna=False) -> float:
     return mean(p1 / p0, p1 * q1, order=0.0, skipna=skipna)
-
 
 
 def fisher(
@@ -91,7 +69,6 @@ def fisher(
     )
 
 
-
 def tornqvist(
     p1: pd.Series,
     p0: pd.Series,
@@ -102,7 +79,6 @@ def tornqvist(
     return nested_mean(
         p1 / p0, (p0 * q0, p1 * q1), order=(0.0, (0.0, 0.0)), skipna=skipna
     )
-
 
 
 def drobisch(
@@ -117,7 +93,6 @@ def drobisch(
     )
 
 
-
 def walsh1(
     p1: pd.Series,
     p0: pd.Series,
@@ -126,7 +101,6 @@ def walsh1(
     skipna=False,
 ) -> float:
     return mean(p1 / p0, p0 * np.sqrt(q0 * q1), order=1.0, skipna=skipna)
-
 
 
 def marshall_edgeworth(
@@ -139,7 +113,6 @@ def marshall_edgeworth(
     return mean(p1 / p0, p0 * (q0 + q1), order=1.0, skipna=skipna)
 
 
-
 def geary_khamis(
     p1: pd.Series,
     p0: pd.Series,
@@ -150,7 +123,6 @@ def geary_khamis(
     return mean(p1 / p0, p0 * (1 / q0 + 1 / q1), order=1.0, skipna=skipna)
 
 
-
 def walsh2(
     p1: pd.Series,
     p0: pd.Series,
@@ -159,7 +131,6 @@ def walsh2(
     skipna=False,
 ) -> float:
     return mean(p1 / p0, np.sqrt(p1 * q1 * p0 * q0), order=0.0, skipna=skipna)
-
 
 
 def theil(
@@ -176,7 +147,6 @@ def theil(
     return mean(p1 / p0, (w1 * w0 * (w1 + w0) / 2) ** (1 / 3), order=0.0)
 
 
-
 def rao(
     p1: pd.Series,
     p0: pd.Series,
@@ -189,7 +159,6 @@ def rao(
     w1 = scale_weights(p1 * q1)
     w0 = scale_weights(p0 * q0)
     return mean(p1 / p0, w1 * w0 / (w1 + w0) / 2, order=0.0)
-
 
 
 def sato_vartia(
@@ -207,7 +176,6 @@ def sato_vartia(
     )
 
 
-
 def lloyd_moulton(
     p1: pd.Series,
     p0: pd.Series,
@@ -216,7 +184,6 @@ def lloyd_moulton(
     skipna: bool = False,
 ) -> float:
     return mean(p1 / p0, p0 * q0, order=elasticity, skipna=skipna)
-
 
 
 def lehr(
@@ -232,7 +199,6 @@ def lehr(
     v0 = p0 * q0
     v = (v1 + v0) / (q1 + q0)
     return np.sum(v1) / np.sum(v0) * np.sum(v * q0) / np.sum(v * q1)
-
 
 
 def agmean(
